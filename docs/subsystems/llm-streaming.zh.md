@@ -1151,6 +1151,36 @@ Types: [FileAttachmentRef](attachment.zh.md) · [ImageAttachmentRef](attachment.
 
 Source: [`packages/llm/llm/src/index.ts`](../../packages/llm/llm/src/index.ts)
 
+<a id="ctxmacdelibudget--macdelibudget"></a>
+
+### `ctx.macdeliBudget` — `MacdeliBudget`
+
+Available only while the authoritative ledger and physical request hooks are installed.
+
+Source: [`packages/macdeli/budget/src/index.ts`](../../packages/macdeli/budget/src/index.ts)
+
+<a id="deepseek-events"></a>
+
+### `deepseek/*` events
+
+<a id="deepseekphysical-attempt--waterfall"></a>
+
+#### `deepseek/physical-attempt` — waterfall
+
+Wrap one serialized physical Messages POST before dispatch.
+
+```ts cordis-catalog
+/**
+ * Wrap one serialized physical Messages POST before dispatch.
+ * @param request - effective endpoint, body and attribution without credentials.
+ * @param next - dispatch exactly this attempt; middleware must delegate once.
+ * @mode waterfall
+ */
+'deepseek/physical-attempt'(request: DeepSeekPhysicalAttempt, next: () => AsyncIterable<import('@deepseek-ai/dsh-llm').StreamChunk>): AsyncIterable<import('@deepseek-ai/dsh-llm').StreamChunk>
+```
+
+Source: [`packages/llm/llm-deepseek/src/host.ts`](../../packages/llm/llm-deepseek/src/host.ts)
+
 <a id="llm-events"></a>
 
 ### `llm/*` events

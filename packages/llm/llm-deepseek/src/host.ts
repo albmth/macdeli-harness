@@ -7,7 +7,19 @@ import { resolveImageAttachmentAccess } from '@deepseek-ai/dsh-llm'
 import { getOrCreateAnonymousUserId, type AnonymousUserId } from '@deepseek-ai/dsh-anonymous-user-id'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import { DeepSeekAdapter } from './adapter.ts'
-import type { DeepSeekAdapterOptions, DeepSeekConnectionOptions } from './types.ts'
+import type { DeepSeekAdapterOptions, DeepSeekConnectionOptions, DeepSeekPhysicalAttempt } from './types.ts'
+
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * Wrap one serialized physical Messages POST before dispatch.
+     * @param request - effective endpoint, body and attribution without credentials.
+     * @param next - dispatch exactly this attempt; middleware must delegate once.
+     * @mode waterfall
+     */
+    'deepseek/physical-attempt'(request: DeepSeekPhysicalAttempt, next: () => AsyncIterable<import('@deepseek-ai/dsh-llm').StreamChunk>): AsyncIterable<import('@deepseek-ai/dsh-llm').StreamChunk>
+  }
+}
 
 /**
  * Register one provider with request-local transport services and live retry policy.
@@ -26,6 +38,7 @@ export function registerDeepSeekProvider<C extends DeepSeekConnectionOptions>(
   const unacceptedRoutes = new Set<string>()
   const adapter = new DeepSeekAdapter({
     ...dependencies,
+    attempt: (request, next) => ctx.waterfall('deepseek/physical-attempt', request, next),
     resolveUserId: () => userId ??= getOrCreateAnonymousUserId(),
     onReplayDegrade: ({ provider, model, reason }) => {
       const key = `${provider}/${model}\u0000${reason}`

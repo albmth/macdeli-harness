@@ -364,7 +364,7 @@ describe('retained Schedule delivery', () => {
     expect(third.resolve).not.toHaveBeenCalled()
   })
 
-  it.each(['flush', 'write'] as const)('keeps an active task without a receipt or change notification after %s failure', async (failure) => {
+  it.each(['flush', 'write'] as const)('keeps an active task with a visible recovery time after %s failure', async (failure) => {
     const test = await setup()
     const sessionId = SessionId('failed-delivery')
     const agent = agentFor(test.ctx, sessionId)
@@ -378,13 +378,15 @@ describe('retained Schedule delivery', () => {
     await vi.advanceTimersByTimeAsync(1000)
     expect(followup).toHaveBeenCalledTimes(1)
     expect(test.flush).toHaveBeenCalledTimes(1)
-    expect(changed).not.toHaveBeenCalled()
-    expect(await test.service.catalog()).toEqual([{ ...record, sessionId, status: 'active' }])
+    expect(changed).toHaveBeenCalledTimes(1)
+    expect(await test.service.catalog()).toMatchObject([{ ...record, sessionId, status: 'active', deliveryRetry: { failures: 1 } }])
     expect(await test.service.list({ sessionId })).toEqual([record])
     expect(test.pool.media.get('schedule')!.tables.get('tasks')!.get(record.id))
-      .toEqual({ record, sessionId, status: 'active', deliveryHistory: { records: [], earlierRecordsUnavailable: false } })
-    await vi.advanceTimersByTimeAsync(86_400_000)
+      .toMatchObject({ record, sessionId, status: 'active', deliveryRetry: { failures: 1 }, deliveryHistory: { records: [], earlierRecordsUnavailable: false } })
+    await vi.advanceTimersByTimeAsync(5000)
     expect(followup).toHaveBeenCalledTimes(1)
+    expect((await test.service.catalog())[0]).toMatchObject({ status: 'inactive' })
+    expect((await test.service.catalog())[0]?.deliveryRetry).toBeUndefined()
   })
 })
 

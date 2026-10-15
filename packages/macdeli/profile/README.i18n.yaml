@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/macdeli/profile/README.md
+/:
+  en: de73c2af91c04e43
+  zh: fcdeb22a334381bc
+/macdeli-dsh-quant:
+  en: d3dca13a5927b2db
+  zh: fddc43800323e172
+/macdeli-dsh-quant/summary:
+  en: 5ca4d96cb05564b7
+  zh: 607a6a65996ebca7
+/macdeli-dsh-quant/table-of-contents:
+  en: 648fee9baabbb0d6
+  zh: b844224f7decb87d
+/macdeli-dsh-quant/composition:
+  en: 4b7bb40e9a26a702
+  zh: f797bb1361986099
+/macdeli-dsh-quant/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/macdeli-dsh-quant/model-experience/research-profile:
+  en: 4280281aad61bc35
+  zh: 3fcb293cc35644ca
+/macdeli-dsh-quant/model-experience/research-profile/what-the-model-sees:
+  en: 5c0ca2596d652cee
+  zh: 60dd5bebb1a845a3
+/macdeli-dsh-quant/model-experience/research-profile/token-effect:
+  en: 4f16ed711b400079
+  zh: 8e0243c473e98c81
+/macdeli-dsh-quant/model-experience/research-profile/kv-cache-effect:
+  en: 2b4a715e2dba47b8
+  zh: 4f2bc716c71bec04
+/macdeli-dsh-quant/known-limitations-and-deferred-work:
+  en: cb3f5c9ae69cf18c
+  zh: 5822110ef56c59ea
+/macdeli-dsh-quant/known-limitations-and-deferred-work/dev-note:
+  en: 985611e38b85ca29
+  zh: 97e9f8050881fb1c

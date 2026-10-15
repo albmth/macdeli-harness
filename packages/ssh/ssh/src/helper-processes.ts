@@ -100,6 +100,7 @@ export class RemoteProcesses {
   constructor(
     private readonly ctx: Context, private readonly root: string,
     private readonly limit: number, private readonly preparationMs: number,
+    private readonly taskWrapper?: () => string | undefined,
   ) {
     this.reportSpillFailure = logSpillFailure(ctx.logger, 'ssh helper')
   }
@@ -175,6 +176,8 @@ export class RemoteProcesses {
     if (this.closing) throw new Error('SSH helper is closing')
     record.controller.signal.throwIfAborted()
     const request = record.request
+    const wrapper = this.taskWrapper?.()
+    const argv = wrapper === undefined ? request.argv : [wrapper, ...request.argv]
     const cwd = this.ctx.fs.processPath(await this.ctx.fs.resolve(request.cwd, { signal: record.controller.signal }))
     record.controller.signal.throwIfAborted()
     const env = request.env === undefined ? {} : Object.fromEntries(
@@ -182,7 +185,7 @@ export class RemoteProcesses {
     )
     if (request.terminal !== undefined) {
       const terminal = await this.ctx.subprocess.spawnTerminal({
-        argv: request.argv, cwd,
+        argv, cwd,
         env: Object.fromEntries(Object.entries(env).filter((entry): entry is [string, string] => entry[1] !== undefined)),
         graceMs: request.graceMs, ...request.terminal,
         signal: record.controller.signal,
@@ -202,7 +205,7 @@ export class RemoteProcesses {
       return
     }
     const stdio = request.stdio as NonNullable<Request['stdio']>
-    const spec: SubprocessSpawnSpec = { argv: request.argv, cwd, env, graceMs: request.graceMs, signal: record.controller.signal,
+    const spec: SubprocessSpawnSpec = { argv, cwd, env, graceMs: request.graceMs, signal: record.controller.signal,
       stdio: { stdin: stdio.stdin, stdout: 'pipe', stderr: 'pipe', ...(stdio.control === undefined ? {} : { control: stdio.control }) },
     }
     const ordinary = this.ctx.subprocess.spawn(spec)

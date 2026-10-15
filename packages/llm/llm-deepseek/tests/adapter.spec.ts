@@ -64,6 +64,23 @@ declare module '@deepseek-ai/dsh-llm' {
 }
 
 describe('direct Messages HTTP', () => {
+  it('exposes the effective physical POST before dispatch and retains returned identity and usage', async () => {
+    const http = await endpoint()
+    let physical = 0
+    const llm = adapter({ baseURL: http.url, maxTokens: 8192 }, {
+      attempt: async function* (request, next) {
+        expect(http.requests).toHaveLength(0)
+        expect(request.endpoint).toBe(`${http.url}/v1/messages`)
+        expect(JSON.parse(request.payload)).toMatchObject({ max_tokens: 8192, model: MODEL })
+        physical++
+        yield* next()
+        expect(request.receipt).toEqual({ model: MODEL, usage: { input_tokens: 12, output_tokens: 5 } })
+      },
+    })
+    await chunks(llm.stream(options()))
+    expect(physical).toBe(1)
+  })
+
   it('continues through Messages with assistant blocks in saved user history', async () => {
     const http = await endpoint()
     const notice = createUserMessage({ source: { kind: 'saved-notice' }, content: [

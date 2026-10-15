@@ -227,6 +227,8 @@ export interface Config {
 export interface Config {
   /** Override platform desktop-opener detection. */
   readonly nativeOpen?: boolean
+  /** Create cwd on the Host before activation; false when a remote preset owns its prepared workspace. */
+  readonly prepareLocalWorkspace?: boolean
   /** Positive integral milliseconds of list work before yielding between complete rows. */
   readonly listWorkSliceMs?: number
 }
@@ -3176,6 +3178,8 @@ export interface Config {
   helperHash: string
   /** Absolute remote default workspace. */
   workspace: string
+  /** Deployment-owned remote launcher for per-task OS resource boundaries. */
+  taskWrapper?: string
   /** Connection and administrative-request deadline, at most 2,147,483,647 milliseconds. */
   requestTimeoutMs?: number
   /** Maximum JSON payload bytes per helper request or response. */
@@ -4526,6 +4530,35 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-workspace-changes -->
 
+<!-- BEGIN GENERATED config-catalog:@macdeli/dsh-mission -->
+<a id="macdelidsh-mission"></a>
+
+## `@macdeli/dsh-mission`
+
+- `inject`: `agents` · `sessions` · `sessionController` · `sessionProjections` · `storageDomain` · `goals` · `tools` · `schedule` · `sessionPersistence` · `macdeliBudget`
+- `source`: [`packages/macdeli/mission/src/index.ts:23`](../packages/macdeli/mission/src/index.ts)
+
+```ts config-catalog
+/** Deployment-owned mission authority and continuation policy. */
+export interface Config {
+  /** Enduring economic objective retained in the mission session. */
+  objective: string
+  /** Owner-authorized operating scope; startup rejects a changed authority. */
+  authority: string
+  /** Research worker directory supplied to the remote agent preset. */
+  workspace: string
+  /** Private Host Unix socket for owner status, pause and resume. */
+  controlSocket: string
+  /** Initial native round allocation; work_extend records justified increases. */
+  maxGoalRounds: number
+  /** Whether a newly initialized mission waits for explicit owner resume. */
+  initialPaused: boolean
+  /** At most two persisted delays for terminal transient provider probes. */
+  probeDelaysMs: number[]
+}
+```
+<!-- END GENERATED config-catalog:@macdeli/dsh-mission -->
+
 ## Loadable plugins with no config
 
 These load from a `cordis.yml` entry with no `config:` block; they declare no configuration API.
@@ -4638,6 +4671,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-user-questions` | — | [`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts) |
 | `@deepseek-ai/dsh-webhook` | `agents` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `sessionTitle` · `workspaceRegistry` | [`packages/experimental/webhook/src/index.ts`](../packages/experimental/webhook/src/index.ts) |
 | `@deepseek-ai/dsh-workspace` | `storageDomain` · `sessionPersistence` | [`packages/workspace/workspace/src/index.ts`](../packages/workspace/workspace/src/index.ts) |
+| `@macdeli/dsh-budget` | `llm` | [`packages/macdeli/budget/src/index.ts`](../packages/macdeli/budget/src/index.ts) |
 <!-- END GENERATED config-catalog:no-config -->
 
 ## Seam packages (not directly loadable)
@@ -4737,4 +4771,5 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 | `@deepseek-ai/dsh-util-values` | — | [`packages/util/values/src/index.ts`](../packages/util/values/src/index.ts) |
 | `@deepseek-ai/dsh-util-workspace-path` | — | [`packages/util/workspace-path/src/index.ts`](../packages/util/workspace-path/src/index.ts) |
 | `@deepseek-ai/dsh-win32-process` | — | [`packages/subprocess/win32-process/src/index.ts`](../packages/subprocess/win32-process/src/index.ts) |
+| `@macdeli/dsh-quant` | — | [`packages/macdeli/profile/src/index.ts`](../packages/macdeli/profile/src/index.ts) |
 <!-- END GENERATED config-catalog:library -->

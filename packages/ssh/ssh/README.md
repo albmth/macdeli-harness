@@ -39,11 +39,16 @@ Install an [SSH helper executable archive](../ssh-helper-runtime/README.md), or 
 | `launch` | required | `{ kind: "executable" }`, or `{ kind: "node-script", node: "/absolute/node" }` |
 | `helper`, `workspace` | required | Absolute remote helper entry and default workspace |
 | `helperHash` | required | Lowercase SHA-256 of the installed helper entry |
+| `taskWrapper` | omitted | Deployment-owned remote launcher prepended to ordinary and terminal process arguments |
 | `launch.bootstrapPath`, `launch.bootstrapHash` | omitted | Paired remote PTC script and digest; only for `node-script` |
 | `requestTimeoutMs` | `30000` | Connection and administrative-request deadline, from 1 through 2,147,483,647 ms |
 | `maxFrameBytes` | `67108864` | Per-message JSON payload ceiling, at most 64 MiB |
 | `maxPending` | `128` | Ordinary outstanding requests; heartbeat and bounded cleanup requests have reserved capacity |
 | `leaseMs` | `30000` | Helper heartbeat lease, from 3000 to 600000 ms |
+
+When configured, `taskWrapper` applies per-task OS limits while the helper connection remains long-lived.
+
+The wrapper is a trusted deployment executable, not a model-selected command, and its enforcement policy belongs to the deployment.
 
 Pass the verified `ctx.ssh.ptcLaunch` as the `launch` configuration of [`NodePtcRuntime`](../../ptc-runtime/ptc-runtime-node/README.md). Executable deployments include their worker. Script deployments require both bootstrap fields for PTC; filesystem and Bash use may omit them. The getter refuses an unconfigured script bootstrap. The client rejects mismatched protocol versions, runtime kinds and helper digests before readiness.
 

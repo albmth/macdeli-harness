@@ -37,6 +37,21 @@ async function fixture(config?: (root: string) => WorkingDirectoryConfig) {
 }
 
 describe('Session working directories', () => {
+  it('checks a remote working directory using the selected preset filesystem', async () => {
+    await using f = await fixture()
+    const agent = await f.harness.create(SessionId('remote-directory'), {}, { cwd: '/quant-remote/work' })
+    const target = await f.ctx.fs.resolve(f.root)
+    const remoteStat = vi.fn(async () => ({ type: 'directory' }))
+    const remote = { resolve: vi.fn(async () => target), stat: remoteStat }
+    const serviceFor = vi.fn(() => remote)
+    f.ctx.provide('agentPresets', { serviceFor })
+    const hostStat = vi.spyOn(f.ctx.fs, 'stat')
+    expect(await f.ctx.workingDirectory.ensure(agent)).toBe('/quant-remote/work')
+    expect(serviceFor).toHaveBeenCalledWith(agent, 'fs')
+    expect(remoteStat).toHaveBeenCalledOnce()
+    expect(hostStat).not.toHaveBeenCalled()
+  })
+
   it('keeps origin metadata and other Sessions independent while logging the changed directory', async () => {
     await using f = await fixture()
     const child = join(f.root, 'child')

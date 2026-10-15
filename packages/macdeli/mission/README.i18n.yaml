@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/macdeli/mission/README.md
+/:
+  en: 06b34889b09f51c5
+  zh: c1036058a2723fd4
+/macdeli-dsh-mission:
+  en: fe9bba4d1e24c33c
+  zh: dbfa852cb6b3371c
+/macdeli-dsh-mission/summary:
+  en: 6bc0d2135f404e74
+  zh: ce0a381acd529e3a
+/macdeli-dsh-mission/table-of-contents:
+  en: 67af5df59b8cb991
+  zh: 1d51c8fe6cacab0b
+/macdeli-dsh-mission/use-this-package:
+  en: e307a9639fb9367d
+  zh: e0ab3d7ebe6f942b
+/macdeli-dsh-mission/recovery:
+  en: 06adcc23a7526656
+  zh: ae685c92d21d4241
+/macdeli-dsh-mission/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/macdeli-dsh-mission/model-experience/mission-tools-and-continuation:
+  en: 5b75c99e23f25236
+  zh: 9f88cd82d08dbd5b
+/macdeli-dsh-mission/model-experience/mission-tools-and-continuation/what-the-model-sees:
+  en: 0f4aca99996ce5c1
+  zh: 87ae4a8f3b33ee0a
+/macdeli-dsh-mission/model-experience/mission-tools-and-continuation/token-effect:
+  en: cc0bc0f6c5349b73
+  zh: 40a134ebc6688777
+/macdeli-dsh-mission/model-experience/mission-tools-and-continuation/kv-cache-effect:
+  en: 742630bff3df17f3
+  zh: 17934533f6ae610d
+/macdeli-dsh-mission/known-limitations-and-deferred-work:
+  en: d5bcc40c32ef232e
+  zh: edaab5eb64a3794c
+/macdeli-dsh-mission/known-limitations-and-deferred-work/dev-note:
+  en: 898813675d2d183c
+  zh: c83b8e313709339c

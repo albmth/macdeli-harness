@@ -5,6 +5,7 @@
 
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { MessageId } from '@deepseek-ai/dsh-llm/brand'
+import type { ContextFormed } from '@deepseek-ai/dsh-llm'
 import type { Branded } from '@deepseek-ai/dsh-brand'
 import type {} from '@deepseek-ai/dsh-session/types'
 // Type-only: the Workspace registry's archive-admission family map this plugin merges `schedule` into.
@@ -193,6 +194,27 @@ export type RecurringScheduleRecord = EveryScheduleRecord | DailyScheduleRecord 
 /** Reminder rule and target, stored with its original Session binding. */
 export type ScheduleRecord = OneShotScheduleRecord | RecurringScheduleRecord
 
+/** Typed occurrence identity retained through grouped reminder delivery and retries. */
+export interface ScheduleOccurrence {
+  readonly schedule_id: ScheduleId
+  readonly occurrence_at: string
+  readonly occurrence_key: string
+}
+
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    /** Scheduler-owned identity survives inbox/task commit interruptions. */
+    'schedule': { kind: 'schedule'; occurrences?: readonly ScheduleOccurrence[] } & ContextFormed
+  }
+}
+
+/** Persisted delivery recovery; this never implies model work completed. */
+export interface ScheduleDeliveryRetry {
+  readonly failures: number
+  readonly nextAttemptAt: string
+  readonly lastError: string
+}
+
 /** Durable Session inbox delivery acknowledgment, not model execution completion. */
 export interface ScheduleDeliveryReceipt {
   /** Canonical UTC target of the delivered occurrence. */
@@ -217,6 +239,8 @@ export type ScheduleCatalogEntry = ScheduleRecord & {
   readonly status: 'active' | 'inactive'
   /** Most recent durably acknowledged inbox delivery, when available. */
   readonly lastDelivery?: ScheduleDeliveryReceipt
+  /** Delivery fault and next non-model infrastructure retry. */
+  readonly deliveryRetry?: ScheduleDeliveryRetry
 }
 
 /** Creates one durable reminder record. */

@@ -1,0 +1,46 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/macdeli/budget/README.md
+/:
+  en: 2479ed772e37a023
+  zh: b24235dbfd315064
+/macdeli-dsh-budget:
+  en: 4ad36e886896ab6b
+  zh: c56f68926d972406
+/macdeli-dsh-budget/summary:
+  en: daf9779ce3b1126d
+  zh: cddc260525e82368
+/macdeli-dsh-budget/table-of-contents:
+  en: 29be5193039ea9d1
+  zh: 129e0bf36bbac40a
+/macdeli-dsh-budget/use-this-package:
+  en: 4421cf3cbba633f9
+  zh: c54052cc2cb54ac8
+/macdeli-dsh-budget/accounting:
+  en: 80e910e7c6df9031
+  zh: fd58cc70c47f0064
+/macdeli-dsh-budget/verification:
+  en: 25c7d2f116651bfe
+  zh: 3efef4d94a9e37fe
+/macdeli-dsh-budget/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/macdeli-dsh-budget/model-experience/paid-request-admission:
+  en: b9a9995d18beaf99
+  zh: 3e2a22f9945a9e60
+/macdeli-dsh-budget/model-experience/paid-request-admission/what-the-model-sees:
+  en: 8483fa4768169cc9
+  zh: c0be4e0a1f0a941e
+/macdeli-dsh-budget/model-experience/paid-request-admission/token-effect:
+  en: 0d3981ab85035925
+  zh: bb0276a1a021207e
+/macdeli-dsh-budget/model-experience/paid-request-admission/kv-cache-effect:
+  en: f4b41e3cb5051855
+  zh: a6448acc1faf15da
+/macdeli-dsh-budget/known-limitations-and-deferred-work:
+  en: 399c485a2f2f4761
+  zh: f54ca71d5321a718
+/macdeli-dsh-budget/known-limitations-and-deferred-work/dev-note:
+  en: 9731489d2b7f5c5b
+  zh: 768bf549dc73a89e

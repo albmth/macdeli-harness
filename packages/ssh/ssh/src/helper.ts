@@ -58,7 +58,8 @@ export async function runSshHelper(transport: HelperTransport): Promise<void> {
   const runtime = await services()
   const { ctx } = runtime
   const root = await mkdtemp('/tmp/dsh-ssh-')
-  const processes = new RemoteProcesses(ctx, root, SSH_MAX_PROCESS_HANDLES, 30_000)
+  let taskWrapper: string | undefined
+  const processes = new RemoteProcesses(ctx, root, SSH_MAX_PROCESS_HANDLES, 30_000, () => taskWrapper)
   const lifetime = new AbortController()
   const iterators = new Map<SshTextStreamId, { iterator: AsyncIterator<string>; controller: AbortController }>()
   let lease: NodeJS.Timeout | undefined
@@ -98,10 +99,12 @@ export async function runSshHelper(transport: HelperTransport): Promise<void> {
       const input = z.object({
         protocol: z.literal(SSH_PROTOCOL_VERSION), workspace: remotePath, leaseMs: z.number().int().min(3000).max(600_000),
         bootstrapPath: remotePath.optional(),
+        taskWrapper: remotePath.optional(),
       }).strict().parse(raw)
       if (transport.kind === 'executable' && input.bootstrapPath !== undefined) throw new Error('Executable SSH helper uses its embedded PTC bootstrap')
       workspace = ctx.fs.processPath(await ctx.fs.resolve(input.workspace, { signal }))
       leaseMs = input.leaseMs
+      taskWrapper = input.taskWrapper
       initialized = true
       touchLease()
       return {

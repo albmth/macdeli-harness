@@ -84,6 +84,16 @@ The official root is `https://api.deepseek.com/anthropic`. An explicit `baseURL`
 
 Messages sends text, thinking, tool calls, and tool results as content blocks, reasoning effort as `output_config.effort`, and images as Files references or inline base64. Models declaring `systemPromptUpdate: in-history` retain the initial top-level system and send new system snapshots after their corresponding user/tool-result turn; undeclared models use the latest snapshot as the top-level system. Replay metadata preserves the model and thinking signatures. Invalid replay metadata emits a warning and omits signatures while retaining text and tool history. Model entries may declare `toolUpdate: addition-only` or `in-history`; the default `deepseek-flash` entry declares `addition-only`. Projected developer tool updates become system-role `tool_addition` and `tool_removal` blocks referencing declared names, and deferred declarations carry `defer_loading`. Requests containing those blocks send the `mid-conversation-tool-changes-2026-07-01` beta header. Messages omits empty assistant text blocks and skips assistant messages left without content, including saved history from other protocols. The stored Session content remains intact.
 
+### Physical request accounting
+
+The MacDeli fork adds a `deepseek/physical-attempt` waterfall around each serialized Messages POST, after defaults and extensions resolve and immediately before dispatch.
+
+Listeners receive the exact endpoint/body and request attribution without credential headers, and delegate once through `next()`.
+
+The attempt's `receipt` is populated when the complete response reports its actual model and cumulative original usage fields.
+
+The MacDeli budget plugin validates and persists this receipt before exposing successful completion; ordinary Session message formats are unchanged.
+
 ### Account credentials
 
 `deepseek-official` resolves only its configured API-key reference. `deepseek-account` resolves only the stored grant from the [account provider](../../credentials/deepseek-account-platform/README.md), whose allowed `inferenceOrigin` defaults to `https://api.deepseek.com`. Neither route falls back to the other. Signing out removes the account grant and preserves API keys.

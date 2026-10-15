@@ -1,5 +1,5 @@
 /** Model catalog and request-local dependencies for DeepSeek Messages. */
-import type { LlmModelInfo, ModelModality, SystemPromptUpdate, ToolUpdate, ResolvedRetryPolicy, ImageAttachmentAccess } from '@deepseek-ai/dsh-llm'
+import type { LlmModelInfo, ModelModality, SystemPromptUpdate, ToolUpdate, ResolvedRetryPolicy, ImageAttachmentAccess, GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
 import type { AttachmentStore, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { AnonymousUserId } from '@deepseek-ai/dsh-anonymous-user-id'
 import type { DeepSeekLlmApiExtensionRequest, PreparedDeepSeekLlmApiExtensions } from '@deepseek-ai/dsh-deepseek-llm-api-extensions'
@@ -89,8 +89,30 @@ export interface DeepSeekRequestAuth {
   onRequestError?: (error: unknown) => Promise<unknown>
 }
 
+/** Original returned model identity and cumulative Messages usage. */
+export interface DeepSeekResponseReceipt {
+  /** Actual provider identity, absent when the provider omitted it. */
+  model?: string
+  /** Original cumulative usage fields, including unrecognized fields. */
+  usage: Record<string, unknown>
+}
+
+/** Fully serialized physical Messages POST, after defaults and extensions. */
+export interface DeepSeekPhysicalAttempt {
+  /** Exact URL dispatched without redirects. */
+  endpoint: string
+  /** Immutable serialized request body, without authentication headers. */
+  payload: string
+  /** Request/session attribution supplied by the shared LLM service. */
+  options: GenerateOptions
+  /** Set only after the complete stream provides authoritative usage. */
+  receipt?: DeepSeekResponseReceipt
+}
+
 /** Constructor options for {@link DeepSeekAdapter}: the operation-local resolution hooks the plugin owns. */
 export interface DeepSeekAdapterOptions<Connection extends DeepSeekConnectionOptions = DeepSeekConnectionOptions> {
+  /** Wrap each physical Messages POST, including internal retries, before network dispatch. */
+  attempt?: (request: DeepSeekPhysicalAttempt, next: () => AsyncIterable<StreamChunk>) => AsyncIterable<StreamChunk>
   /** Report unusable native Messages replay metadata without exposing content or signatures. */
   onReplayDegrade?: (detail: { provider: string; model: string; reason: string }) => void
   /** Report extension fields omitted from one request because the merged request failed to serialize. */

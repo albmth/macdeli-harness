@@ -30,7 +30,7 @@ afterEach(async () => {
   for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
 
-async function harness(): Promise<{ ctx: Context; agents: ApiSessionAgentController }> {
+async function harness(prepareLocalWorkspace = true): Promise<{ ctx: Context; agents: ApiSessionAgentController }> {
   const ctx = new Context()
   roots.push(ctx)
   await ctx.plugin(TypertRegistry)
@@ -43,7 +43,7 @@ async function harness(): Promise<{ ctx: Context; agents: ApiSessionAgentControl
     currentSelection: () => ({ provider: 'fixture', model: 'fixture-model' }),
     saveSelection: () => Promise.resolve(),
   } as never)
-  return { ctx, agents: new ApiSessionAgentController(ctx) }
+  return { ctx, agents: new ApiSessionAgentController(ctx, prepareLocalWorkspace) }
 }
 
 function header(id: string, cwd: string | null = '/workspace'): SessionHeader {
@@ -358,5 +358,18 @@ describe('ApiSession creation', () => {
     writeFileSync(file, 'not a directory')
     await expect(agents.createSession({ cwd: join(file, 'child'), reusable: () => true }))
       .rejects.toThrow('failed to ensure project directory')
+  })
+
+  it('does not prepare a remote preset directory on the Host', async () => {
+    const { ctx, agents } = await harness(false)
+    const parent = mkdtempSync(join(tmpdir(), 'dsh-remote-workspace-'))
+    tempDirs.push(parent)
+    const file = join(parent, 'host-file')
+    writeFileSync(file, 'Host path is deliberately not a directory')
+    const remoteCwd = join(file, 'remote-child')
+    const create = vi.spyOn(ctx.agents, 'create').mockRejectedValue(new Error('reached remote Agent activation'))
+    await expect(agents.createSession({ cwd: remoteCwd, reusable: () => true }))
+      .rejects.toThrow('reached remote Agent activation')
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ meta: expect.objectContaining({ cwd: remoteCwd }) }))
   })
 })

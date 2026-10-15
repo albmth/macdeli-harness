@@ -41,6 +41,8 @@ export interface Config {
   helperHash: string
   /** Absolute remote default workspace. */
   workspace: string
+  /** Deployment-owned remote launcher for per-task OS resource boundaries. */
+  taskWrapper?: string
   /** Connection and administrative-request deadline, at most 2,147,483,647 milliseconds. */
   requestTimeoutMs?: number
   /** Maximum JSON payload bytes per helper request or response. */
@@ -64,6 +66,7 @@ export class SshConnection extends Service {
       schema.object({ kind: schema.const('executable').required() }),
     ]).required(),
     helperHash: schema.string().required(), workspace: schema.string().required(),
+    taskWrapper: schema.string(),
     requestTimeoutMs: schema.number().default(30_000), maxFrameBytes: schema.number().default(64 * 1024 * 1024),
     maxPending: schema.number().default(128), leaseMs: schema.number().default(30_000),
   })
@@ -98,6 +101,7 @@ export class SshConnection extends Service {
       ]),
       helper: z.string().startsWith('/'), helperHash: z.string().regex(/^[0-9a-f]{64}$/),
       workspace: z.string().startsWith('/'), requestTimeoutMs: z.number().int().positive().max(2_147_483_647),
+      taskWrapper: z.string().startsWith('/').optional(),
       maxFrameBytes: z.number().int().positive().max(64 * 1024 * 1024), maxPending: z.number().int().positive().max(128),
       leaseMs: z.number().int().min(3000).max(600_000),
     }).strict().parse(config) as Required<Config>
@@ -311,6 +315,7 @@ export class SshConnection extends Service {
     rpc.once('closed', (error) => { this.fail(error as Error) })
     const hello = await rpc.request('hello', {
       protocol: SSH_PROTOCOL_VERSION, workspace: this.config.workspace, leaseMs: this.config.leaseMs,
+      ...(this.config.taskWrapper === undefined ? {} : { taskWrapper: this.config.taskWrapper }),
       ...(bootstrapPath === undefined ? {} : { bootstrapPath }),
     }, helloSchema, AbortSignal.timeout(this.config.requestTimeoutMs))
     if (hello.hash !== this.config.helperHash) throw new Error('SSH helper digest differs from the configured artifact')

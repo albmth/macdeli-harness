@@ -5,7 +5,7 @@ import type { GenerateOptions, ImageAttachmentAccessResolver, PreparedAdapterCal
 import type { DeepSeekLlmApiJson } from '@deepseek-ai/dsh-deepseek-llm-api-extensions'
 import { idleWatchdog, timeoutOf } from '@deepseek-ai/dsh-timeout'
 import { modelInfo } from './model-info.ts'
-import type { DeepSeekAdapterOptions, DeepSeekConnectionOptions as Connection } from './types.ts'
+import type { DeepSeekAdapterOptions, DeepSeekPhysicalAttempt, DeepSeekConnectionOptions as Connection } from './types.ts'
 import { DeepSeekFileStore } from './file-store.ts'
 import { MESSAGES_FILES_BETA, MESSAGES_TOOL_CHANGES_BETA, messagesApiRoot } from './messages-api.ts'
 import { FileResolutionFailure, RequestFiles } from './request-files.ts'
@@ -135,34 +135,41 @@ export class DeepSeekAdapter<C extends Connection = Connection> extends LlmAdapt
             ? [MESSAGES_TOOL_CHANGES_BETA]
             : [],
         ]
-        const response = await fetch(`${messagesApiRoot(connection.baseURL)}/messages`, {
-          method: 'POST', signal, body: extensions.payload, redirect: 'error',
-          headers: {
-            ...attributionHeaders(),
-            'content-type': 'application/json', 'accept': 'text/event-stream',
-            ...auth.headers,
-            'anthropic-version': '2023-06-01',
-            ...betas.length === 0 ? {} : { 'anthropic-beta': betas.join(',') },
-            'x-deepseek-harness-user-id': this.dependencies.resolveUserId(),
-            ...options.sessionId === undefined ? {} : { 'x-deepseek-harness-session-id': String(options.sessionId) },
-            ...options.purpose === 'compaction' ? { 'x-deepseek-harness-compact': '1' } : {},
-          },
-        })
-        if (!response.ok) {
-          const text = await response.text()
-          let raw: unknown
-          try { raw = JSON.parse(text) } catch (_nonJsonGatewayError) {
-            // HTTP status is authoritative when a gateway does not return JSON.
+        const endpoint = `${messagesApiRoot(connection.baseURL)}/messages`
+        const attempt: DeepSeekPhysicalAttempt = { endpoint, payload: extensions.payload, options }
+        let retryFiles = false
+        const dispatch = async function* (this: DeepSeekAdapter<C>): AsyncGenerator<StreamChunk> {
+          const response = await fetch(endpoint, {
+            method: 'POST', signal, body: extensions.payload, redirect: 'error',
+            headers: {
+              ...attributionHeaders(),
+              'content-type': 'application/json', 'accept': 'text/event-stream',
+              ...auth.headers,
+              'anthropic-version': '2023-06-01',
+              ...betas.length === 0 ? {} : { 'anthropic-beta': betas.join(',') },
+              'x-deepseek-harness-user-id': this.dependencies.resolveUserId(),
+              ...options.sessionId === undefined ? {} : { 'x-deepseek-harness-session-id': String(options.sessionId) },
+              ...options.purpose === 'compaction' ? { 'x-deepseek-harness-compact': '1' } : {},
+            },
+          })
+          if (!response.ok) {
+            const text = await response.text()
+            let raw: unknown
+            try { raw = JSON.parse(text) } catch (_nonJsonGatewayError) {
+              // HTTP status is authoritative when a gateway does not return JSON.
+            }
+            const detail = providerErrorDetail(raw)
+            if (await files.retry(detail)) { retryFiles = true; return }
+            const failure = providerError(raw, response.status, response.headers)
+            const message = files.errorMessage(response.status, failure.message, detail)
+            throw new LlmError(message, failure.code, { ...failure.failure, cause: new Error(text) })
           }
-          const detail = providerErrorDetail(raw)
-          if (await files.retry(detail)) continue
-          const failure = providerError(raw, response.status, response.headers)
-          const message = files.errorMessage(response.status, failure.message, detail)
-          throw new LlmError(message, failure.code, { ...failure.failure, cause: new Error(text) })
-        }
-        await extensions.accept()
-        if (response.body === null) throw new LlmError('DeepSeek Messages returned no response body', 'EMPTY_RESPONSE')
-        yield* translate(parseSse(response.body, activity), options.model)
+          await extensions.accept()
+          if (response.body === null) throw new LlmError('DeepSeek Messages returned no response body', 'EMPTY_RESPONSE')
+          yield* translate(parseSse(response.body, activity), options.model, (receipt) => { attempt.receipt = receipt })
+        }.bind(this)
+        yield* this.dependencies.attempt?.(attempt, dispatch) ?? dispatch()
+        if (retryFiles) continue
         return
       }
     } catch (error) {

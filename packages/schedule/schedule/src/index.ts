@@ -288,6 +288,7 @@ export class ScheduleService extends TypertRemoteService {
       .map(([, task]) => ({
         ...task.record, sessionId: task.sessionId, status: task.status,
         ...(task.lastDelivery === undefined ? {} : { lastDelivery: task.lastDelivery }),
+        ...(task.deliveryRetry === undefined ? {} : { deliveryRetry: task.deliveryRetry }),
       }))
       .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt) || a.id.localeCompare(b.id))
   }
@@ -366,7 +367,8 @@ export class ScheduleService extends TypertRemoteService {
       if (current.status === 'inactive') return { id: request.id, updated: false, code: 'schedule_ended' }
       const result = resolveScheduleUpdate(current.record, request.expected, request.change, Date.now(), request)
       if (!('record' in result) || !result.updated) return result
-      await tasks.put(request.id, { ...current, record: result.record })
+      const { deliveryRetry: _retry, ...updated } = current
+      await tasks.put(request.id, { ...updated, record: result.record })
       this.emitChanged()
       this.runtime?.requestDrive()
       return result

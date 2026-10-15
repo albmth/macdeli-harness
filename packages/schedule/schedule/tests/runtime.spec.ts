@@ -21,7 +21,7 @@ afterEach(async () => {
 async function setup(tasks: ScheduleTask[]) {
   const test = await harness(); tests.push(test)
   const agent = agentFor(test.ctx)
-  const followup = vi.fn<Agent['followup']>()
+  const followup = vi.fn<Agent['followup']>((message) => { agent.session.append('agent/inbox/spliced', { target: 'next-turn', start: 0, inserted: [message] }) })
   agent.followup = followup
   test.resolve.mockResolvedValue({ agent })
   const commit = vi.fn(async (task: ScheduleTask) => {
@@ -67,7 +67,7 @@ describe('Host Schedule timer', () => {
     expect(test.resolve).not.toHaveBeenCalled()
     await vi.advanceTimersByTimeAsync(1)
     expect(test.resolve).toHaveBeenCalledWith(SessionId('original'))
-    expect(test.followup).toHaveBeenCalledWith(expect.objectContaining({ source: { kind: 'schedule' } }))
+    expect(test.followup).toHaveBeenCalledWith(expect.objectContaining({ source: expect.objectContaining({ kind: 'schedule' }) }))
     expect(test.flush).toHaveBeenCalled()
     expect(test.commit).toHaveBeenCalledTimes(1)
     expect(tasks).toEqual([{
@@ -154,6 +154,27 @@ describe('Host Schedule timer', () => {
     expect(tasks[1]?.record.scheduledAt).toBe('2026-09-17T00:00:00.000Z')
   })
 
+  it('reuses the durable inbox identity after task-commit failure and runtime restart', async () => {
+    const tasks = [task(createAfterScheduleRecord(ScheduleId('crash-window'), 'Research once', 1, Date.now() - 2000, 'Research once'))]
+    const test = await setup(tasks)
+    test.commit.mockRejectedValueOnce(new Error('task commit interrupted'))
+    test.runtime.requestDrive()
+    await vi.advanceTimersByTimeAsync(0)
+    const message = test.followup.mock.calls[0]![0]
+    expect(tasks[0]?.deliveryRetry?.failures).toBe(1)
+    expect(test.agent.session.snapshotEvents().flatMap(event => event.type === 'agent/inbox/spliced' ? event.data.inserted : [])).toHaveLength(1)
+    await test.runtime.dispose()
+    const resumed = new ScheduleRuntime(test.ctx, () => tasks, work => work(), test.commit, { days: 30, records: 200 })
+    runtimes.push(resumed)
+    resumed.requestDrive()
+    await vi.advanceTimersByTimeAsync(4999)
+    expect(test.followup).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(test.followup).toHaveBeenCalledTimes(1)
+    expect(tasks[0]).toMatchObject({ status: 'inactive', lastDelivery: { messageId: message.id } })
+    expect(tasks[0]?.deliveryRetry).toBeUndefined()
+  })
+
   it('keeps the daily task identity and rule across two deliveries with distinct message receipts', async () => {
     const record = createDailyScheduleRecord(ScheduleId('daily'), 'Morning check', {
       time: '08:00:02', time_zone: 'Asia/Shanghai',
@@ -200,16 +221,21 @@ describe('Host Schedule timer', () => {
     expect(test.commit).toHaveBeenCalledTimes(2)
   })
 
-  it('keeps a failed enqueue without a retry timer', async () => {
+  it('retains a failed enqueue and retries at bounded increasing intervals', async () => {
     const tasks = [task(createAfterScheduleRecord(ScheduleId('failed'), 'Retry on restart', 1, Date.now() - 2000, 'Retry on restart'))]
     const test = await setup(tasks)
     vi.mocked(test.followup).mockImplementation(() => { throw new Error('unavailable') })
     test.runtime.requestDrive()
     await vi.advanceTimersByTimeAsync(0)
-    expect(test.commit).not.toHaveBeenCalled()
-    expect(tasks).toHaveLength(1)
-    await vi.advanceTimersByTimeAsync(86_400_000)
+    expect(tasks[0]?.deliveryRetry?.failures).toBe(1)
     expect(test.followup).toHaveBeenCalledTimes(1)
+    for (const [index, delay] of [5000, 30000, 300000, 3600000].entries()) {
+      await vi.advanceTimersByTimeAsync(delay - 1)
+      expect(test.followup).toHaveBeenCalledTimes(index + 1)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(test.followup).toHaveBeenCalledTimes(index + 2)
+      expect(tasks[0]?.deliveryRetry?.failures).toBe(index + 2)
+    }
   })
 
   it('keeps the task when Session durability fails after enqueue', async () => {
@@ -219,7 +245,8 @@ describe('Host Schedule timer', () => {
     test.runtime.requestDrive()
     await vi.advanceTimersByTimeAsync(0)
     expect(test.followup).toHaveBeenCalledTimes(1)
-    expect(test.commit).not.toHaveBeenCalled()
+    expect(test.commit).toHaveBeenCalledTimes(1)
+    expect(tasks[0]?.deliveryRetry?.failures).toBe(1)
     expect(tasks).toHaveLength(1)
   })
 
@@ -242,12 +269,14 @@ describe('Host Schedule timer', () => {
     await vi.advanceTimersByTimeAsync(0)
     expect(test.followup).toHaveBeenCalledTimes(1)
     expect(test.flush).toHaveBeenCalledTimes(1)
-    expect(test.commit).toHaveBeenCalledTimes(failure === 'flush' ? 0 : 1)
-    expect(records).toEqual([original])
-    expect(vi.getTimerCount()).toBe(0)
-    await vi.advanceTimersByTimeAsync(86_400_000)
+    expect(test.commit).toHaveBeenCalledTimes(failure === 'flush' ? 1 : 2)
+    expect(records[0]).toMatchObject(original)
+    expect(records[0]?.deliveryRetry?.failures).toBe(1)
+    expect(vi.getTimerCount()).toBe(1)
+    await vi.advanceTimersByTimeAsync(5000)
     expect(test.followup).toHaveBeenCalledTimes(1)
-    expect(records).toEqual([original])
+    expect(records[0]?.record.scheduledAt).toBe('2026-09-17T00:00:00.000Z')
+    expect(records[0]?.deliveryRetry).toBeUndefined()
   })
 
   it('publishes a daily advance only after the Session flush completes', async () => {
@@ -350,7 +379,10 @@ describe('Schedule dispatch failures and concurrent changes', () => {
     expect(test.followup).toHaveBeenCalledTimes(1)
     expect(test.flush).toHaveBeenCalledTimes(1)
     const message = test.followup.mock.calls[0]![0]
-    expect(message.source).toEqual({ kind: 'schedule' })
+    expect(message.source).toMatchObject({ kind: 'schedule', occurrences: [
+      { schedule_id: 'daily-batch', occurrence_at: '2026-09-15T23:59:00.000Z' },
+      { schedule_id: 'every-batch', occurrence_at: '2026-09-16T00:00:00.000Z' },
+    ] })
     expect(JSON.stringify(message.content)).toContain('Daily check')
     expect(JSON.stringify(message.content)).toContain('Interval check')
     expect(records).toEqual([
@@ -510,7 +542,8 @@ describe('Schedule dispatch failures and concurrent changes', () => {
     test.runtime.requestDrive()
     await vi.advanceTimersByTimeAsync(0)
     expect(test.followup).not.toHaveBeenCalled()
-    expect(test.commit).not.toHaveBeenCalled()
+    expect(test.commit).toHaveBeenCalledTimes(1)
+    expect(records[0]?.deliveryRetry?.failures).toBe(1)
     expect(records).toHaveLength(1)
   })
 
@@ -522,7 +555,8 @@ describe('Schedule dispatch failures and concurrent changes', () => {
       test.runtime.requestDrive()
       await vi.advanceTimersByTimeAsync(0)
       expect(test.followup).toHaveBeenCalledTimes(1)
-      expect(test.commit).not.toHaveBeenCalled()
+      expect(test.commit).toHaveBeenCalledTimes(1)
+      expect(records[0]?.deliveryRetry?.failures).toBe(1)
       expect(records).toHaveLength(1)
       expect(records[0]?.status).toBe('active')
       expect(records[0]?.lastDelivery).toBeUndefined()

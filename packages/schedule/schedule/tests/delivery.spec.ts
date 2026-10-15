@@ -39,7 +39,7 @@ it('acknowledges the real synchronous inbox splice after flush without claiming 
         expect(resolve).toHaveBeenCalledWith(agent.session.id)
         const inserted = eventsAtFlush.flatMap(event => event.type === 'agent/inbox/spliced' ? event.data.inserted : [])
         expect(inserted).toHaveLength(1)
-        expect(inserted[0]?.source).toEqual({ kind: 'schedule' })
+        expect(inserted[0]?.source).toEqual({ kind: 'schedule', occurrences: [{ schedule_id: 'receipt', occurrence_at: record.scheduledAt, occurrence_key: `receipt@${record.scheduledAt}` }] })
         expect(agent.inbox.nextTurn).toEqual(inserted)
         expect(commit).not.toHaveBeenCalled()
         expect(tasks).toEqual([{ sessionId: agent.session.id, record, status: 'active' }])

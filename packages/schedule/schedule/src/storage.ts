@@ -40,6 +40,11 @@ export const scheduleTaskSchema = z.object({
   status: z.enum(['active', 'inactive']).default('active'),
   lastDelivery: deliveryReceiptSchema.optional(),
   deliveryHistory: deliveryHistorySchema.optional(),
+  deliveryRetry: z.object({
+    failures: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+    nextAttemptAt: instantSchema,
+    lastError: z.string().min(1).max(1000),
+  }).strict().optional(),
 }).strict().refine((task) => {
   if (task.deliveryHistory === undefined) return true
   const latest = task.deliveryHistory.records.at(-1)

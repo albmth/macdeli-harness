@@ -334,6 +334,8 @@ type ScheduleCatalogEntry = ScheduleRecord & {
   readonly status: 'active' | 'inactive'
   /** Most recent durably acknowledged inbox delivery, when available. */
   readonly lastDelivery?: ScheduleDeliveryReceipt
+  /** Delivery fault and next non-model infrastructure retry. */
+  readonly deliveryRetry?: ScheduleDeliveryRetry
 }
 ```
 

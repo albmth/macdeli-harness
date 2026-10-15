@@ -134,8 +134,9 @@ export class WorkingDirectoryService extends Service {
   ensure(agent: Agent, signal?: AbortSignal): Promise<string> {
     return this.serialize(agent, signal, async (control) => {
       const current = this.get(agent.session)
-      const target = await this.ctx.fs.resolve(current, { signal: control })
-      const info = await this.ctx.fs.stat(target, control)
+      const fs = this.filesystem(agent)
+      const target = await fs.resolve(current, { signal: control })
+      const info = await fs.stat(target, control)
       control.throwIfAborted()
       agent.ctx.fiber.assertActive()
       if (info?.type === 'directory') {
@@ -145,7 +146,7 @@ export class WorkingDirectoryService extends Service {
         return current
       }
       const original = agent.session.header.cwd ?? this.defaultDirectory
-      const restored = await this.directory(original, original, control)
+      const restored = await this.directory(agent, original, original, control)
       this.commit(agent, restored, true, control)
       return restored
     })
@@ -163,7 +164,7 @@ export class WorkingDirectoryService extends Service {
   set(agent: Agent, path: string, signal?: AbortSignal): Promise<string> {
     return this.serialize(agent, signal, async (control) => {
       if (path.length === 0) throw new Error('working-directory: cd must not be empty')
-      const directory = await this.directory(path, this.get(agent.session), control)
+      const directory = await this.directory(agent, path, this.get(agent.session), control)
       this.commit(agent, directory, false, control)
       return directory
     })
@@ -173,14 +174,23 @@ export class WorkingDirectoryService extends Service {
     return `Current working directory: ${JSON.stringify(this.get(session))}.`
   }
 
-  private async directory(path: string, cwd: string, signal: AbortSignal): Promise<string> {
-    const target = await this.ctx.fs.resolve(path, { cwd, signal })
-    const info = await this.ctx.fs.stat(target, signal)
+  private filesystem(agent: Agent): Context['fs'] {
+    // The preset registry is an optional higher-layer consumer of this service.
+    // Read only its service lookup contract to avoid a registry -> tools ->
+    // working-directory -> registry compiler dependency cycle.
+    const presets: { serviceFor(agent: Agent, name: 'fs'): Context['fs'] | undefined } | undefined = this.ctx.get('agentPresets')
+    return presets?.serviceFor(agent, 'fs') ?? this.ctx.fs
+  }
+
+  private async directory(agent: Agent, path: string, cwd: string, signal: AbortSignal): Promise<string> {
+    const fs = this.filesystem(agent)
+    const target = await fs.resolve(path, { cwd, signal })
+    const info = await fs.stat(target, signal)
     signal.throwIfAborted()
     if (info?.type !== 'directory') {
       throw new Error(`working-directory: directory does not exist: ${JSON.stringify(path)}`)
     }
-    return this.ctx.fs.processPath(target)
+    return fs.processPath(target)
   }
 
   private commit(agent: Agent, directory: string, recovered: boolean, signal: AbortSignal): void {

@@ -1547,6 +1547,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'macdeliBudget',
+    summary: 'Available only while the authoritative ledger and physical request hooks are installed.',
+    description: 'Available only while the authoritative ledger and physical request hooks are installed.',
+    methods: [],
+  },
+  {
     key: 'mcpResources',
     summary: 'Scoped resource access plus three tools shared by configured MCP servers.',
     description: 'Scoped resource access plus three tools shared by configured MCP servers.',
@@ -4253,6 +4259,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [],
   },
   {
+    name: 'deepseek/physical-attempt',
+    mode: 'waterfall',
+    signature: '\'deepseek/physical-attempt\'(request: DeepSeekPhysicalAttempt, next: () => AsyncIterable<import(\'@deepseek-ai/dsh-llm\').StreamChunk>): AsyncIterable<import(\'@deepseek-ai/dsh-llm\').StreamChunk>',
+    summary: 'Wrap one serialized physical Messages POST before dispatch.',
+    description: 'Wrap one serialized physical Messages POST before dispatch.',
+    parameters: [{ name: 'request', description: 'effective endpoint, body and attribution without credentials.' }, { name: 'next', description: 'dispatch exactly this attempt; middleware must delegate once.' }],
+  },
+  {
     name: 'domain/changed',
     mode: 'emit',
     signature: '\'domain/changed\'(change: DomainChanged): void',
@@ -5287,6 +5301,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'DeepSeekLlmApiJson',
     declaration: 'export type DeepSeekLlmApiJson = null | boolean | number | string | DeepSeekLlmApiJson[] | {\n    [key: string]: DeepSeekLlmApiJson;\n};',
+  },
+  {
+    name: 'DeepSeekPhysicalAttempt',
+    declaration: 'export interface DeepSeekPhysicalAttempt {\n    endpoint: string;\n    payload: string;\n    options: GenerateOptions;\n    receipt?: DeepSeekResponseReceipt;\n}',
+  },
+  {
+    name: 'DeepSeekResponseReceipt',
+    declaration: 'export interface DeepSeekResponseReceipt {\n    model?: string;\n    usage: Record<string, unknown>;\n}',
   },
   {
     name: 'DeliveryRetentionBounds',
@@ -6754,7 +6776,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ScheduleCatalogEntry',
-    declaration: 'export type ScheduleCatalogEntry = ScheduleRecord & {\n    readonly sessionId: SessionId;\n    readonly status: \'active\' | \'inactive\';\n    readonly lastDelivery?: ScheduleDeliveryReceipt;\n};',
+    declaration: 'export type ScheduleCatalogEntry = ScheduleRecord & {\n    readonly sessionId: SessionId;\n    readonly status: \'active\' | \'inactive\';\n    readonly lastDelivery?: ScheduleDeliveryReceipt;\n    readonly deliveryRetry?: ScheduleDeliveryRetry;\n};',
   },
   {
     name: 'ScheduleCreateRequest',
@@ -6783,6 +6805,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ScheduleDeliveryRecord',
     declaration: 'export interface ScheduleDeliveryRecord extends ScheduleDeliveryReceipt {\n    readonly prompt?: string;\n}',
+  },
+  {
+    name: 'ScheduleDeliveryRetry',
+    declaration: 'export interface ScheduleDeliveryRetry {\n    readonly failures: number;\n    readonly nextAttemptAt: string;\n    readonly lastError: string;\n}',
   },
   {
     name: 'ScheduledToolDispatch',

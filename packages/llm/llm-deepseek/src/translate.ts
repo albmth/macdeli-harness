@@ -4,6 +4,7 @@ import { LlmError, ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, FinishReason, StreamChunk, TokenUsage } from '@deepseek-ai/dsh-llm'
 import { object, replayState } from './replay.ts'
 import type { ReplayBlock } from './replay.ts'
+import type { DeepSeekResponseReceipt } from './types.ts'
 
 interface Block {
   index: number
@@ -99,17 +100,25 @@ function stopReason(raw: unknown): FinishReason {
 /** Translate decoded SSE data into the Harness stream protocol.
  * @param events - framed, decoded provider events in arrival order.
  * @param model - requested model id stored in durable replay state.
+ * @param onReceipt - observes actual identity and raw usage after complete response.
  * @returns blocks, one final usage value, and exactly one terminal finish.
  */
-export async function* translate(events: AsyncIterable<Record<string, unknown>>, model: string): AsyncGenerator<StreamChunk> {
+export async function* translate(
+  events: AsyncIterable<Record<string, unknown>>, model: string, onReceipt?: (receipt: DeepSeekResponseReceipt) => void,
+): AsyncGenerator<StreamChunk> {
   const blocks = new Map<number, Block>()
   const usage: TokenUsage = { inputTokens: 0, outputTokens: 0 }
+  const providerUsage: Record<string, unknown> = {}
+  let providerModel: string | undefined
   let started = false
   let reason: FinishReason | undefined
   for await (const event of events) {
     if (event.type === 'message_start') {
       if (started) return malformed('duplicate message_start')
-      updateUsage(usage, object(event.message).usage)
+      const message = object(event.message)
+      if (message.model !== undefined) providerModel = string(message.model)
+      Object.assign(providerUsage, object(message.usage))
+      updateUsage(usage, message.usage)
       started = true
       continue
     }
@@ -143,7 +152,10 @@ export async function* translate(events: AsyncIterable<Record<string, unknown>>,
     } else if (event.type === 'message_delta') {
       const delta = object(event.delta)
       if (delta.stop_reason != null) reason = stopReason(delta.stop_reason)
-      if (event.usage !== undefined) updateUsage(usage, event.usage)
+      if (event.usage !== undefined) {
+        Object.assign(providerUsage, object(event.usage))
+        updateUsage(usage, event.usage)
+      }
     } else {
       if (reason === undefined || [...blocks.values()].some(block => !block.closed)) return malformed('message_stop without settled blocks and stop reason')
       if (blocks.size === 0 && reason.kind === 'stop') throw new LlmError('DeepSeek Messages returned no content', 'EMPTY_RESPONSE')
@@ -157,6 +169,7 @@ export async function* translate(events: AsyncIterable<Record<string, unknown>>,
         }
       }
       usage.totalTokens = usage.inputTokens + usage.outputTokens + (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0)
+      onReceipt?.({ ...providerModel === undefined ? {} : { model: providerModel }, usage: providerUsage })
       yield { type: 'usage', usage }
       yield { type: 'finish', reason, replayState: replayState(model, [...blocks.values()].map(block => block.replay)) }
       return

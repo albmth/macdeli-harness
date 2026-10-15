@@ -60,6 +60,8 @@ interface Config {
   helperHash: string
   /** Absolute remote default workspace. */
   workspace: string
+  /** Deployment-owned remote launcher for per-task OS resource boundaries. */
+  taskWrapper?: string
   /** Connection and administrative-request deadline, at most 2,147,483,647 milliseconds. */
   requestTimeoutMs?: number
   /** Maximum JSON payload bytes per helper request or response. */

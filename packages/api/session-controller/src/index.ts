@@ -94,12 +94,14 @@ function addressedSession(request: { readonly address: SessionAddress }): Sessio
 export interface Config {
   /** Override platform desktop-opener detection. */
   readonly nativeOpen?: boolean
+  /** Create cwd on the Host before activation; false when a remote preset owns its prepared workspace. */
+  readonly prepareLocalWorkspace?: boolean
   /** Positive integral milliseconds of list work before yielding between complete rows. */
   readonly listWorkSliceMs?: number
 }
 
 /** Deployment policy after schema defaults have been applied. */
-type ResolvedConfig = Config & { readonly listWorkSliceMs: number }
+type ResolvedConfig = Config & { readonly listWorkSliceMs: number; readonly prepareLocalWorkspace: boolean }
 
 /** Host integrations replaceable by direct unit tests. */
 export interface SessionControllerInternals {
@@ -134,6 +136,7 @@ export class SessionController extends TypertRemoteService {
 
   static Config: z<Config, ResolvedConfig> = z.object({
     nativeOpen: z.boolean(),
+    prepareLocalWorkspace: z.boolean().default(true),
     listWorkSliceMs: z.natural().min(1).default(16),
   })
 
@@ -159,7 +162,7 @@ export class SessionController extends TypertRemoteService {
     ctx.typert.resources.register('session', { field: 'sessionId' })
     const resolved = SessionController.Config(config)
     installModelSelectionProjection(ctx)
-    this.agents = new ApiSessionAgentController(ctx)
+    this.agents = new ApiSessionAgentController(ctx, resolved.prepareLocalWorkspace)
     this.commands = new SessionCommandController(ctx, this.agents, process.cwd())
     ctx.effect(() => ctx.fileUploads.registerAgentResolver(async (sessionId) => {
       const result = await this.agents.resolveAgent(sessionId)

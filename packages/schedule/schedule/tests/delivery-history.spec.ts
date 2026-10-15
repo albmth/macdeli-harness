@@ -163,7 +163,7 @@ it.each(['every', 'daily'] as const)('retains real %s receipts and immutable pro
   })
 })
 
-it.each(['flush-false', 'flush-reject', 'put'] as const)('publishes no additional history or notification after %s failure', async (failure) => {
+it.each(['flush-false', 'flush-reject', 'put'] as const)('preserves history and exposes a durable recovery time after %s failure', async (failure) => {
   const test = await setup()
   const agent = agentFor(test.ctx, sessionId)
   const followup = vi.spyOn(agent, 'followup')
@@ -181,9 +181,10 @@ it.each(['flush-false', 'flush-reject', 'put'] as const)('publishes no additiona
   await vi.advanceTimersByTimeAsync(300_000)
   expect(followup).toHaveBeenCalledTimes(2)
   expect(await test.service.history({ sessionId, id: record.id, limit: 100 })).toEqual(before)
-  expect(await test.service.catalog()).toEqual(catalog)
-  expect(test.pool.media.get('schedule')!.tables.get('tasks')!.get(record.id)).toEqual(disk)
-  expect(changed).not.toHaveBeenCalled()
+  expect(await test.service.catalog()).toMatchObject(catalog)
+  expect((await test.service.catalog())[0]?.deliveryRetry).toMatchObject({ failures: 1, nextAttemptAt: '2026-09-16T00:10:05.000Z' })
+  expect(test.pool.media.get('schedule')!.tables.get('tasks')!.get(record.id)).toMatchObject(disk!)
+  expect(changed).toHaveBeenCalledTimes(1)
 })
 
 it('deletes an ended task together with its complete history', async () => {

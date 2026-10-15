@@ -108,6 +108,14 @@ const GROUP_ORDER = [
 
 const SERVICE_ROLES: ServiceRole[] = [
   {
+    key: 'macdeliBudget',
+    pkg: '@macdeli/dsh-budget',
+    title: 'MacDeli budget admission readiness',
+    mode: 'service',
+    consumers: ['@macdeli/dsh-mission'],
+    note: 'Read-only readiness marker published after the cumulative ledger and physical-request guards are installed; it exposes no accounting mutation API.',
+  },
+  {
     key: 'cotTranslation',
     pkg: 'experimental-client-ui-cot-translation',
     title: 'Reasoning translation Remote',
